@@ -7,7 +7,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/ElrohirGT/Redes_MCPServer/lib"
+	"github.com/ElrohirGT/Redes_RemoteMCPServer/lib"
 )
 
 type GetGameFormatsResponse struct {
@@ -29,6 +29,7 @@ func GetGameFormats(ctx context.Context) (GetGameFormatsResponse, error, bool) {
 		l.Println("Failed to create request:", err)
 		return response, err, true
 	}
+	l.Println("Calling:", req.URL.String())
 
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
@@ -41,6 +42,7 @@ func GetGameFormats(ctx context.Context) (GetGameFormatsResponse, error, bool) {
 		l.Println("Failed to read body:", err)
 		return response, err, false
 	}
+	l.Println("Body bytes:\n", string(bodyBytes))
 
 	err = json.Unmarshal(bodyBytes, &response)
 	if err != nil {

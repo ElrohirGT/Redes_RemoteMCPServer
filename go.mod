@@ -1,4 +1,4 @@
-module github.com/ElrohirGT/Redes_MCPServer
+module github.com/ElrohirGT/Redes_RemoteMCPServer
 
 go 1.24.5
 

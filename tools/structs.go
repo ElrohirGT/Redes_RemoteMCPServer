@@ -1,7 +1,7 @@
 package tools
 
 type MTGCard struct {
-	Id       string   `json:"id"`
+	Id       string   `json:"multiverseid"`
 	Name     string   `json:"name"`
 	ManaCost string   `json:"manaCost"`
 	Colors   []string `json:"colors"`

@@ -7,11 +7,11 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/ElrohirGT/Redes_MCPServer/lib"
+	"github.com/ElrohirGT/Redes_RemoteMCPServer/lib"
 )
 
 type GetCardResponse struct {
-	Card MTGCard
+	Card MTGCard `json:"card"`
 }
 
 var GET_CARD_CACHE = lib.NewCache(&GetCardResponse{}, time.Now())
@@ -24,11 +24,12 @@ func GetCardCore(ctx context.Context, id string) (GetCardResponse, error, bool) 
 	}
 
 	var response GetCardResponse
-	req, err := http.NewRequestWithContext(ctx, "GET", API_BASE_URL+"/v1/card/"+id, nil)
+	req, err := http.NewRequestWithContext(ctx, "GET", API_BASE_URL+"/v1/cards/"+id, nil)
 	if err != nil {
 		l.Println("Failed to create request:", err)
 		return response, err, true
 	}
+	l.Println("Calling:", req.URL.String())
 
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
@@ -41,6 +42,7 @@ func GetCardCore(ctx context.Context, id string) (GetCardResponse, error, bool) 
 		l.Println("Failed to read body:", err)
 		return response, err, false
 	}
+	l.Println("Body bytes:\n", string(bodyBytes))
 
 	err = json.Unmarshal(bodyBytes, &response)
 	if err != nil {

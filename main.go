@@ -10,7 +10,7 @@ import (
 	"sync"
 	"syscall"
 
-	"github.com/ElrohirGT/Redes_MCPServer/tools"
+	"github.com/ElrohirGT/Redes_RemoteMCPServer/tools"
 	"github.com/mark3labs/mcp-go/mcp"
 	"github.com/mark3labs/mcp-go/server"
 )
@@ -33,8 +33,8 @@ func main() {
 	get_cards_tool := mcp.NewTool("get_cards",
 		mcp.WithDescription("Obtains a list of cards from the Magic The Gathering (MTG) database. For each card it gets: id, name, manacost, colors, type, rarity, text and image url."),
 	)
-	get_card_tool := mcp.NewTool("get_cards",
-		mcp.WithDescription("Obtains information about a specific card from Magic The Gathering (MTG). Specifically: id, name, manacost, colors, type, rarity, text and image url."),
+	get_card_tool := mcp.NewTool("get_card",
+		mcp.WithDescription("Obtains information about a specific card from Magic The Gathering (MTG). Specifically: id, name, manacost, colors, type, rarity, text, image url and text description."),
 		mcp.WithString("id", mcp.Description("The id of the card to search for more information.")),
 	)
 	get_game_formats_tool := mcp.NewTool("get_formats",
@@ -125,6 +125,11 @@ func cardToStringBuilder(b *strings.Builder, card tools.MTGCard) {
 	b.WriteString(card.Rarity)
 	b.WriteString("\n - Type: ")
 	b.WriteString(card.Type)
+
+	if card.Text != "" {
+		b.WriteString("\n - Text: ")
+		b.WriteString(card.Text)
+	}
 }
 
 func get_cards(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
@@ -142,7 +147,8 @@ func get_cards(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolR
 
 	log.Println("Transforming request from JSON into single string...")
 	b := strings.Builder{}
-	for _, card := range result.Cards {
+	for _, card := range limit(result.Cards, 10) {
+		card.Text = ""
 		cardToStringBuilder(&b, card)
 		b.WriteRune('\n')
 	}
@@ -151,6 +157,13 @@ func get_cards(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolR
 	log.Println("Final output:\n", resultText)
 
 	return mcp.NewToolResultText(resultText), nil
+}
+
+func limit[T any](arr []T, limit int) []T {
+	if len(arr) > limit {
+		return arr[:limit]
+	}
+	return arr
 }
 
 func get_game_formats(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
