@@ -54,4 +54,7 @@ go run . -h
 
 ## Available Tools
 
-// TODO: List tools
+1. **get_card** - Get detailed information about a specific MTG card by ID
+   (name, mana cost, colors, type, rarity, text, image URL).
+1. **get_cards** - Get a list of cards from the MTG database.
+1. **get_formats** - Get all available MTG formats to play.
