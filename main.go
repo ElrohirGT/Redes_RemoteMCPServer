@@ -10,6 +10,7 @@ import (
 	"sync"
 	"syscall"
 
+	"github.com/ElrohirGT/Redes_MCPServer/tools"
 	"github.com/mark3labs/mcp-go/mcp"
 	"github.com/mark3labs/mcp-go/server"
 )
@@ -23,22 +24,27 @@ func main() {
 
 	// Create a new MCP server
 	s := server.NewMCPServer(
-		"Nix MCP Server",
+		"MTG Cards MCP Server",
 		"1.0.0",
 		server.WithToolCapabilities(false),
 	)
 
 	// Add tool
-	tool := mcp.NewTool("search_package",
-		mcp.WithDescription("Search for packages inside the nix repository, get information like: name, summary, home page url, version, license, release date and platforms"),
-		mcp.WithString("name",
-			mcp.Required(),
-			mcp.Description("Name of the package to search"),
-		),
+	get_cards_tool := mcp.NewTool("get_cards",
+		mcp.WithDescription("Obtains a list of cards from the Magic The Gathering (MTG) database. For each card it gets: id, name, manacost, colors, type, rarity, text and image url."),
+	)
+	get_card_tool := mcp.NewTool("get_cards",
+		mcp.WithDescription("Obtains information about a specific card from Magic The Gathering (MTG). Specifically: id, name, manacost, colors, type, rarity, text and image url."),
+		mcp.WithString("id", mcp.Description("The id of the card to search for more information.")),
+	)
+	get_game_formats_tool := mcp.NewTool("get_formats",
+		mcp.WithDescription("Get's all the available formats to play Magic the Gathering (MTG)"),
 	)
 
 	// Add tool handler
-	s.AddTool(tool, search_package)
+	s.AddTool(get_cards_tool, get_cards)
+	s.AddTool(get_card_tool, get_card)
+	s.AddTool(get_game_formats_tool, get_game_formats)
 
 	if transport == "http" {
 		serverCtx, cancelServerCtx := context.WithCancel(context.Background())
@@ -78,48 +84,92 @@ func main() {
 	}
 }
 
-type SearchPackageResult struct {
-	Packages []NixHubPkgInfo
-}
-
-func search_package(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-	log.Printf("Received request to `search_package`\n%#v", request)
-	name, err := request.RequireString("name")
+func get_card(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	log.Printf("Received request to `get_card`\n%#v", request)
+	id, err := request.RequireString("id")
 	if err != nil {
-		log.Println("ERROR: No required `name` argument provided!")
-		return mcp.NewToolResultError("ERROR: " + err.Error()), nil
+		log.Println("No ID provided!")
+		return mcp.NewToolResultError(err.Error()), err
 	}
 
-	log.Println("Trying to search packages with name:", name)
-	result, err, should_terminate := search_package_core(ctx, name)
+	result, err, shouldTerminate := tools.GetCardCore(ctx, id)
 	if err != nil {
-		if should_terminate {
+		if shouldTerminate {
 			return mcp.NewToolResultError(err.Error()), err
 		} else {
 			return mcp.NewToolResultError(err.Error()), nil
 		}
 	}
 
-	log.Println("Transforming request from JSON into single string")
+	log.Println("Transforming request from JSON into single string...")
 	b := strings.Builder{}
-	for _, v := range result.Packages {
-		b.WriteString(v.Name)
-		b.WriteString("\n - Summary: ")
-		b.WriteString(v.Summary)
-		b.WriteString("\n - Homepage: ")
-		b.WriteString(v.HomepageUrl)
-		b.WriteString("\n - License: ")
-		b.WriteString(v.License)
+	cardToStringBuilder(&b, result.Card)
+	resultText := b.String()
+	log.Println("Final output:\n", resultText)
 
-		if len(v.Releases) >= 1 {
-			lr := v.Releases[0]
-			b.WriteString("\n - Latest Release Version: ")
-			b.WriteString(lr.Version)
-			b.WriteString("\n - Latest Release Platforms: ")
-			b.WriteString(lr.PlatformsSummary)
-			b.WriteString("\n - Latest Release Date: ")
-			b.WriteString(lr.LastUpdated.String())
+	return mcp.NewToolResultText(resultText), nil
+}
+
+func cardToStringBuilder(b *strings.Builder, card tools.MTGCard) {
+	b.WriteString(card.Id)
+	b.WriteString("\n - Name: ")
+	b.WriteString(card.Name)
+	b.WriteString("\n - Mana Cost: ")
+	b.WriteString(card.ManaCost)
+	b.WriteString("\n - Colors: ")
+	for _, c := range card.Colors {
+		b.WriteString(c)
+		b.WriteString(",")
+	}
+	b.WriteString("\n - Rarity: ")
+	b.WriteString(card.Rarity)
+	b.WriteString("\n - Type: ")
+	b.WriteString(card.Type)
+}
+
+func get_cards(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	log.Printf("Received request to `get_cards`\n%#v", request)
+
+	log.Println("Trying to get cards from MTG...")
+	result, err, shouldTerminate := tools.GetCardsCore(ctx)
+	if err != nil {
+		if shouldTerminate {
+			return mcp.NewToolResultError(err.Error()), err
+		} else {
+			return mcp.NewToolResultError(err.Error()), nil
 		}
+	}
+
+	log.Println("Transforming request from JSON into single string...")
+	b := strings.Builder{}
+	for _, card := range result.Cards {
+		cardToStringBuilder(&b, card)
+		b.WriteRune('\n')
+	}
+
+	resultText := b.String()
+	log.Println("Final output:\n", resultText)
+
+	return mcp.NewToolResultText(resultText), nil
+}
+
+func get_game_formats(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	log.Printf("Received request to `get_game_formats`\n%#v", request)
+
+	log.Println("Trying to get game formats from MTG...")
+	result, err, shouldTerminate := tools.GetGameFormats(ctx)
+	if err != nil {
+		if shouldTerminate {
+			return mcp.NewToolResultError(err.Error()), err
+		} else {
+			return mcp.NewToolResultError(err.Error()), nil
+		}
+	}
+
+	log.Println("Transforming request from JSON into single string...")
+	b := strings.Builder{}
+	for _, format := range result.Formats {
+		b.WriteString(format)
 		b.WriteRune('\n')
 	}
 
