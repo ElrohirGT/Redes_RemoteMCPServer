@@ -1,5 +1,5 @@
 ARG GO_VERSION=1
-FROM golang:${GO_VERSION}-bookworm as builder
+FROM golang:alpine AS builder
 
 WORKDIR /usr/src/app
 COPY go.mod go.sum ./
@@ -8,7 +8,9 @@ COPY . .
 RUN go build -v -o /run-app .
 
 
-FROM debian:bookworm
+FROM alpine
 
 COPY --from=builder /run-app /usr/local/bin/
+COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
 CMD ["run-app"]
+# CMD ["tail", "-f", "/dev/null"]
